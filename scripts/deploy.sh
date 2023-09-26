@@ -1,56 +1,57 @@
 #!/bin/bash
 
-version=$1
-commit_hash=$2
+# Function to handle errors
 
-if [[ -z $version && -z $commit_hash ]]; then
-    echo "missing parameters"
-    exit 1
-fi
+handle_error() {
 
-Check if commit hash is provided
-if [ $# -eq 0 ]; then
-  echo "Error: Please provide a commit hash."
+  echo "Error: $1"
+
   exit 1
-fi
 
-image_exists=$(docker images -q chatapp:$version)
+}
 
-if [ -z "$image_exists" ]; then
-  echo "Docker image does not exist. Building a new one..."
-  docker build -t chatapp:$version .
-else
-  read -p "Docker image already exists. Do you want to rebuild it? (y/n): " 
-  rebuild_choice
-  if [[ $rebuild_choice == "y" || $rebuild_choice == "Y" ]]; then
-    echo "Deleting existing image..."
-    docker rmi chatapp:$version
-    echo "Building a new image..."
-    docker build -t chatapp:$version .
+# Get version from user
+
+read -p "Enter version: " version
+
+# Get commit hash from user
+
+read -p "Enter commit hash: " commit_hash
+
+# Check if image exists
+
+if docker image inspect chat-app:$version >/dev/null 2>&1; then
+
+  read -p "Image chat-app:$version already exists. Do you want to rebuild? [y/n]: " rebuild
+
+  if [ "$rebuild" == "y" ]; then
+
+    # Delete existing image
+
+    docker image rm chat-app:$version || handle_error "Failed to delete existing image"
+
   else
-    echo "Using existing image."
+
+    echo "Using existing image chat-app:$version"
+
+    exit 0
+
   fi
+
 fi
 
+# Tag the commit
 
-# Check if commit hash exists
-if ! git rev-parse --verify "$commit_hash" >/dev/null 2>&1; then
-  echo "Error: Provided commit hash does not exist."
-  exit 1
-fi
+git tag "$version" "$commit_hash" || handle_error "Failed to tag the commit"
 
-# Optional: Tagging and pushing to GitHub repo
-if [ $# -eq 2 ] && [ "$2" == "--tag-push" ]; then
-  # Tag the commit with a version number
-  git tag "$version" "$commit_hash"
+# Build the image
 
-  # Push the commit and tags to the remote repository
-  git push origin "$commit_hash" "$version"
+docker build -t chat-app:$version . || handle_error "Failed to build the image"
 
-  echo "Tagged commit $commit_hash as $version and pushed to GitHub repository."
-else
-  echo "Skipping tagging and pushing to GitHub repository."
-fi
+# Push the tag to GitHub repository
 
+git push origin "$version" || handle_error "Failed to push to GitHub"
 
-echo "Deployment completed successfully."
+# Success message
+
+echo "Deployment successful!"
