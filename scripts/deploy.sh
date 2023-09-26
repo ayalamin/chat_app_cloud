@@ -55,3 +55,19 @@ git push origin "$version" || handle_error "Failed to push to GitHub"
 # Success message
 
 echo "Deployment successful!"
+# Ask user if they want to push the image to Artifact Registry
+read -p "Do you want to push the image to Artifact Registry? (y/n): " push_image
+
+if [ "$push_image" == "y" ]; then
+  # Authenticate with service account impersonation
+  gcloud auth activate-service-account --key-file=/path/to/service-account-key.json --impersonate-service-account=artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com
+
+  # Push the image to Artifact Registry
+  gcloud artifacts docker images push gcr.io/Grunitech Mid Project/chat_app_cloud:$version
+
+  echo "Image pushed to Artifact Registry."
+else
+  echo "Skipping image push to Artifact Registry."
+fi
+
+echo "Deployment completed successfully." 
