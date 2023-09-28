@@ -61,4 +61,3 @@ else
   echo "Skipping image push to Artifact Registry."
 fi
 
-echo "Deployment completed successfully." 
