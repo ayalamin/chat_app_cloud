@@ -1,63 +1,55 @@
 #!/bin/bash
 
-# Function to handle errors
+# Define your Artifact Registry repository information
+HOSTNAME="me-west1-docker.pkg.dev"
+PROJECT_ID="grunitech-mid-project"
+REPO_NAME="ayala-chat-app-images"
 
-handle_error() {
-  echo "Error: $1"
-  exit 1
-}
+# Get the desired version from the user
+read -p "Enter the desired version/tag for the Docker image: " VERSION
 
-version=$1
-commit_hash=$2
-
-
-# Check if image exists
-
-if docker image inspect chat-app:$version >/dev/null 2>&1; then
-
-  read -p "Image chat-app:$version already exists. Do you want to rebuild? [y/n]: " rebuild
-
-  if [ "$rebuild" == "y" ]; then
-
-    # Delete existing image
-
-    docker image rm chat-app:$version || handle_error "Failed to delete existing image"
-
-  else
-
-    echo "Using existing image chat-app:$version"
-
-    exit 0
-
-  fi
-
-fi
-
-git tag "$version" "$commit_hash" || handle_error "Failed to tag the commit"
-
-docker build -t chat-app:$version . || handle_error "Failed to build the image"
-
-git push origin "$version" || handle_error "Failed to push to GitHub"
-
-# Ask user if they want to push the image to Artifact Registry
-read -p "Do you want to push the image to Artifact Registry? (y/n): " push_image
-
-if [ "$push_image" == "y" ]; then
-
-# Authenticate with service account impersonation
-# gcloud auth activate-service-account --key-file=path/to/artifact-admin-sa-key.json --impersonate-service-account=artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com
-
-
-
-gcloud config set auth/impersonate_service_account artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com
-gcloud auth configure-docker me-west1-docker.pkg.dev
-
-docker tag chat-app:$version me-west1-docker.pkg.dev/grunitech-mid-project/ayala-chat-app-images/chat-app:$version
-docker push me-west1-docker.pkg.dev/grunitech-mid-project/ayala-chat-app-images/chat-app:$version
-
-
-  # echo "Image pushed to Artifact Registry."
+# Check if the image exists locally
+if docker images | grep -q "chat-app:${VERSION}"; then
+  # Image already exists locally
+  IMAGE_EXISTS=true
 else
-  echo "Skipping image push to Artifact Registry."
+  # Image does not exist locally, so you can choose to build or pull it here
+  # For example, you can build the image using a Dockerfile:
+  docker build -t chat-app:${VERSION} .
+
+  # Alternatively, you can pull the image from a registry if it's available:
+  # docker pull registry.example.com/chat-app:${VERSION}
+
+  IMAGE_EXISTS=false
 fi
 
+# Prompt the user to push the image to Artifact Registry
+read -p "Do you want to push the image to Artifact Registry? (y/n): " PUSH_IMAGE
+
+if [[ $PUSH_IMAGE == "y" ]]; then
+  # Authenticate with the service account (replace KEY_FILE_PATH with your key file path)
+  #gcloud auth activate-service-account artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com --key-file=KEY_FILE_PATH
+gcloud config set auth/impersonate_service_account artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com
+
+  # Configure Docker to authenticate with Artifact Registry
+  gcloud auth configure-docker $HOSTNAME
+
+  # Tag the Docker image with the specified version
+  docker tag chat-app:${VERSION} $HOSTNAME/$PROJECT_ID/$REPO_NAME/chat-app:${VERSION}
+
+  # Push the Docker image to Artifact Registry
+  docker push $HOSTNAME/$PROJECT_ID/$REPO_NAME/chat-app:${VERSION}
+
+  # Check if the push was successful
+  if [[ $? -eq 0 ]]; then
+    echo "Image successfully pushed to Artifact Registry."
+  else
+    echo "Error: Image push to Artifact Registry failed."
+  fi
+else
+  echo "Image was not pushed to Artifact Registry."
+fi
+
+
+
+read c
