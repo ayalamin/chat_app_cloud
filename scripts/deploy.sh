@@ -45,8 +45,11 @@ read -p "Do you want to push the image to Artifact Registry? (y/n): " push_image
 if [ "$push_image" == "y" ]; then
 
 # Authenticate with service account impersonation
-gcloud auth activate-service-account --key-file=path/to/artifact-admin-sa-key.json --impersonate-service-account=artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com
+# gcloud auth activate-service-account --key-file=path/to/artifact-admin-sa-key.json --impersonate-service-account=artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com
 
+
+
+gcloud config set auth/impersonate_service_account artifact-admin-sa@grunitech-mid-project.iam.gserviceaccount.com
 gcloud auth configure-docker me-west1-docker.pkg.dev
 
 docker tag chat-app:$version me-west1-docker.pkg.dev/grunitech-mid-project/ayala-chat-app-images/chat-app:$version
